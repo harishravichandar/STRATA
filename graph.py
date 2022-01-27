@@ -35,7 +35,7 @@ class Graph(object):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    import stochastic_trait_matrix as trait_matrix
+    import continuous_trait_matrix as trait_matrix
 
     num_nodes = 8
     num_traits = 6

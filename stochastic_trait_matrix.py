@@ -21,7 +21,7 @@ def CreateRandomQ(S, U, num_non_cumu_traits=0):
       i = np.random.randint(0, S)
       j = np.random.randint(num_non_cumu_traits, U)
       Q[i, j] = 0
-    return Q.astype(np.float)
+    return Q.astype(float)
 
 
 def CreateRankedQ(S, U, num_non_cumu_traits=0):
