@@ -43,6 +43,6 @@ if __name__ == '__main__':
     sys.stdout.write('Generating random matrix with maximum ranks...\t')
     sys.stdout.flush()
     for i in range(num_traits):
-        Q = CreateRankedQ(num_species, num_traits)
-        assert np.linalg.matrix_rank(Q[0]) == num_traits
+        Q, _ = CreateRankedQ(num_species, num_traits)
+        assert np.linalg.matrix_rank(Q) == num_traits
     sys.stdout.write(utils.Highlight('[DONE]\n', utils.GREEN, bold=True))
