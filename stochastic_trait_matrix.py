@@ -44,5 +44,5 @@ if __name__ == '__main__':
     sys.stdout.flush()
     for i in range(num_traits):
         Q = CreateRankedQ(num_species, num_traits)
-        assert np.linalg.matrix_rank(Q) == num_traits
+        assert np.linalg.matrix_rank(Q[0]) == num_traits and np.linalg.matrix_rank(Q[1]) == num_traits
     sys.stdout.write(utils.Highlight('[DONE]\n', utils.GREEN, bold=True))
