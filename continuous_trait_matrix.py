@@ -14,7 +14,7 @@ def CreateRandomQ(S, U):
       i = np.random.randint(0, S)
       j = np.random.randint(0, U)
       Q[i, j] = 0
-    return Q.astype(np.float)
+    return Q.astype(float)
 
 
 def CreateRankedQ(S, U):
