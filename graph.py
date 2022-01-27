@@ -19,7 +19,7 @@ class Graph(object):
     def Plot(self, Y, ax=None):
         # Y: MxU matrix.
         # Returns: fig
-        return nxmod.DrawCircular(Y, self._graph, linewidths=3, ax=ax)
+        return nxmod.DrawCircular(Y, self._graph, width=3, ax=ax)
 
 
     def CreateRobotDistribution(self, num_species, num_robot_per_species, site_restrict=None):
@@ -35,7 +35,7 @@ class Graph(object):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    import trait_matrix
+    import stochastic_trait_matrix as trait_matrix
 
     num_nodes = 8
     num_traits = 6

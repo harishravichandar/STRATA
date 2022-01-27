@@ -56,7 +56,7 @@ def _DrawGraph(Gtraits, G, pos=None, trait_cmap='gist_rainbow', **kwds):
 
 def _DrawNodes(G, pos, nodelist=None, node_size=300, node_index=0, node_color='r',
                node_shape='o', alpha=1.0, cmap=None, vmin=None, vmax=None, ax=None,
-               linewidths=None, label=None, **kwds):
+               width=None, label=None, **kwds):
   if ax is None:
     ax = plt.gca()
   if nodelist is None:
@@ -96,7 +96,7 @@ def _DrawNodes(G, pos, nodelist=None, node_size=300, node_index=0, node_color='r
     ax.add_patch(node_collection)
 
     if node_index == 0:
-      degrees = (np.linspace(0.0, 360.0, 20.0) / 180.0 * np.pi).tolist()
+      degrees = (np.linspace(0.0, 360.0, 20) / 180.0 * np.pi).tolist()
       verts = []
       codes = []
       for j, d in enumerate(degrees):
