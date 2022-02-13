@@ -516,8 +516,8 @@ def Optimize(Y_desired, A, X_init, Q, var_Q, max_rate, gamma=0, warm_start_param
 
     # Normalize input parameters.
     sum_X = float(np.sum(X_init))
-    X_init = X_init.astype(np.float) / sum_X * 800.
-    Y_desired = Y_desired.astype(np.float) / sum_X * 800.
+    X_init = X_init.astype(float) / sum_X * 800.
+    Y_desired = Y_desired.astype(float) / sum_X * 800.
     old_max_rate = max_rate
     max_rate = 2.
     expected_convergence_time = 1.
@@ -628,7 +628,7 @@ def Optimize(Y_desired, A, X_init, Q, var_Q, max_rate, gamma=0, warm_start_param
 
 if __name__ == '__main__':
     import graph
-    import trait_matrix
+    import continuous_trait_matrix as trait_matrix
     num_nodes = 8
     num_traits = 4
     num_species = 4
@@ -638,21 +638,22 @@ if __name__ == '__main__':
     g = graph.Graph(num_nodes)
     X_init = g.CreateRobotDistribution(num_species, robots_per_species, site_restrict=range(0, int(num_nodes / 2)))
     Q = trait_matrix.CreateRandomQ(num_species, num_traits)
+    var_Q = np.var(Q)
     X_final = g.CreateRobotDistribution(num_species, robots_per_species, site_restrict=range(int(num_nodes / 2),
                                                                                              num_nodes))
     Y_desired = X_final.dot(Q)
     A = g.AdjacencyMatrix()
 
     print('Checking gradients...')
-    _, _, p = Optimize(Y_desired, A, X_init, Q, max_rate, verify_gradients=True, verbose=True)
+    _, _, p, _ = Optimize(Y_desired, A, X_init, Q, var_Q, max_rate, verify_gradients=True, verbose=True)
     print('Trying warm-starting...')
-    Optimize(Y_desired, A, X_init, Q, max_rate, warm_start_parameters=p, verbose=True)
+    Optimize(Y_desired, A, X_init, Q, var_Q, max_rate, warm_start_parameters=p, verbose=True)
 
     print('Trying different number of robots...')
-    X_init = X_init.astype(np.float) * 10.
-    Y_desired = Y_desired.astype(np.float) * 10.
-    _, _, p = Optimize(Y_desired, A, X_init, Q, max_rate, verbose=True)
+    X_init = X_init.astype(float) * 10.
+    Y_desired = Y_desired.astype(float) * 10.
+    _, _, p, _ = Optimize(Y_desired, A, X_init, Q, var_Q, max_rate, verbose=True)
 
     print('Trying different rate...')
     max_rate = 4.
-    _, _, p = Optimize(Y_desired, A, X_init, Q, max_rate, verbose=True)
+    _, _, p, _ = Optimize(Y_desired, A, X_init, Q, var_Q, max_rate, verbose=True)
