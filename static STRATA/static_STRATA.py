@@ -263,8 +263,6 @@ class static_STRATA():
             error = np.linalg.norm(self.Y_s - thresholded_traits)
 
             if error < best_error:
-                print("new best STRATA", best_error, "-->", error)
-                print("thresholded traits", thresholded_traits)
                 best_error = error
                 best_X = X
         self.X = best_X
@@ -273,7 +271,7 @@ class static_STRATA():
         return best_X, best_error, best_p
 
     # try every combination of robot distributions to find a solution to minimize performance difference
-    def solve_performance(self):
+    def solve_performance(self, debug_X=None):
         p_opt, _ = self.calc_performance(optimal=True)  # use Y* to get the optimal performance
         best_p = {}
         best_error = float("inf")
@@ -288,7 +286,11 @@ class static_STRATA():
             
             # calculate the performance
             p, _ = self.calc_performance(X=X)
-            error = self.calc_performance_error(p=p, p_opt=p_opt)
+            error = self.calc_performance_error(p=p)
+
+            # if debugging a specific assignment, print the assign's performance/error
+            if debug_X is not None and np.all(X == debug_X):
+                print("Debug Assignment: p", p, "best_p", best_p, "error", error, "best_error", best_error)
 
             if error < best_error:
                 best_p = p
@@ -308,7 +310,7 @@ class static_STRATA():
                 m_u[sorted_tasks[m]][sorted_traits[u]] = Y[m,u]  # set the task-trait to the Y_s spot
         return m_u  # return the task-trait dictionary
 
-    # calculate task performance
+    # calculate task performance, specify optimal=True to use Y*, otherwise specify X to use Y=XQ
     def calc_performance(self, X=None, optimal=False, debug=False):
         p = {}
         if not optimal:  # if not optimal, matrix multiply XQ to get Y
