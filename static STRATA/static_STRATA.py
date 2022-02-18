@@ -5,9 +5,11 @@ import numpy.linalg
 import cvxpy as cp
 import json
 import function_utils
-import STRATA_subclasses
+import STRATA_task, STRATA_trait, STRATA_relationship, STRATA_species
 import copy
 import itertools
+import random
+import matplotlib.pyplot as plt
 
 
 # contains variables and methods for solving STRATA's task optimization without the dynamic reassignment (k) term, so effectively trait-matching optimization
@@ -16,13 +18,14 @@ class static_STRATA():
     Class static_STRATA: enables configuring tasks/robots and optimizes assignment.
 
     Variables:
-        self.tasks          STRATA_task[]       list of tasks
+        self.tasks          STRATA_task{}       dict of tasks
         self.traits         STRATA_trait{}      dict of traits
         self.species        STRATA_species[]    list of species
 
         self.Y_s            np.array(M,U)       optimal task-trait values
         self.Q              np.array(S,U)       species-trait values
-        self.X              np.array(S,M)       species-task values
+        self.X              np.array(S,M)       species-task values of STRATA assignment
+        self.X_complete     np.array(S,M)       species-task values of brute-force assignment
     
     Methods:
         self.generate_default_config            generates default all-linear tasks and traits
@@ -52,7 +55,7 @@ class static_STRATA():
         self.traits = {}  # reset the trait list
         for n in range(num_traits):
             # generate a linear trait from 0-1
-            trait = STRATA_subclasses.STRATA_trait(name="U" + str(n+1), distribution=function_utils.distribution_uniform, param_a=0, param_b=1)  
+            trait = STRATA_trait.STRATA_trait(name="U" + str(n+1), distribution=function_utils.distribution_uniform, param_a=0, param_b=1)  
             self.traits[trait.name] = copy.deepcopy(trait)
         self.num_traits = num_traits
         print("... generated default traits")
@@ -60,7 +63,7 @@ class static_STRATA():
         # generate tasks
         self.tasks = {}  # reset the task list
         for n in range(num_tasks):  # generate num_tasks new tasks
-            task = STRATA_subclasses.STRATA_task(name = "M" + str(n+1))
+            task = STRATA_task.STRATA_task(name = "M" + str(n+1))
             task.generate_linear_relationships(self.traits)
             self.tasks[task.name] = copy.deepcopy(task)  # add the task to the task list
         self.num_tasks = num_tasks
@@ -71,7 +74,7 @@ class static_STRATA():
         for n in range(num_species):  # generate num_species new species
             # create a species with default sampled traits
             name = "S" + str(n+1)
-            species = STRATA_subclasses.STRATA_species(name=name, min_robots=0, max_robots=3)
+            species = STRATA_species.STRATA_species(name=name, min_robots=0, max_robots=3)
             species.generate_trait_values(self.traits)
             self.species[name] = copy.deepcopy(species)
         self.num_species = num_species
@@ -89,16 +92,32 @@ class static_STRATA():
                 self.change_relationship(task=task, trait=trait, function=function_utils.function_linear, param_a=0, param_b=0)
         return
 
+    # generates randomized traits
+    def generate_traits_random(self, max_u=1):
+        for trait in self.traits:  # for each trait
+            # if uniform distribution, randomize the trait range
+            if self.traits[trait].distribution == function_utils.distribution_uniform:
+                self.traits[trait].max_val = random.random() * max_u  # randomize the trait's max
+            # if gaussian distribution, currently not implemented
+            
+
+    # generates randomized relationships
+    def generate_relationships_random(self):
+        for task in self.tasks:
+            for trait in self.traits:
+                self.get_relationship(task=task, trait=trait).generate_random_power_relationship(max_u=self.traits[trait].max_val)
+        return
+
     # add a task
     def add_task(self, name=None, max_robots=3, trait_relationships={}):
         name = name if name is not None else "M" + str(self.num_tasks + 1)
-        new_task = STRATA_subclasses.STRATA_task(name=name, max_robots=0, trait_relationships=trait_relationships)
+        new_task = STRATA_task.STRATA_task(name=name, max_robots=0, trait_relationships=trait_relationships)
         self.tasks[name] = copy.deepcopy(new_task)
         self.num_tasks += 1
         return new_task
 
     # change a trait-task relationship
-    def change_relationship(self, task=None, trait=None, function=None, param_a=None, param_b=None, param_c=None):
+    def change_relationship(self, task=None, trait=None, function=None, max_u=None, param_a=None, param_b=None, param_c=None):
         if task is None:  # check if task is specified
             print("change_relationship(): must specify task name")
             return
@@ -107,6 +126,8 @@ class static_STRATA():
             return
         if function is not None:  # update function
             self.tasks[task].trait_relationships[trait].set_function(function)
+        if max_u is not None:  # update max_u
+            self.tasks[task].trait_relationships[trait].set_max_u(max_u)
         if param_a is not None:  # update param_a
             self.tasks[task].trait_relationships[trait].set_param_a(param_a)
         if param_b is not None:  # update param_b
@@ -151,7 +172,37 @@ class static_STRATA():
                 print("change_species(): max_robots must be >= 0")
                 return
             self.species[species].max_robots = max_robots  # update max_robots
-        
+
+    # get a relationship object given a task name and trait name
+    def get_relationship(self, task=None, trait=None):
+        # error checking
+        if task is None:
+            print("Missing \"task\" parameter.")
+            return
+        if task not in self.tasks:
+            print("Task", "\"" + task + "\"", "does not exist!")
+            return
+        if trait is None:
+            print("Missing \"trait\" parameter.")
+            return
+        if trait not in self.traits:
+            print("Trait", trait, "does not exist!")
+            return
+        if trait not in self.tasks[task].trait_relationships:
+            print("Trait", "\"" + trait + "\"", "does not exist for task", "\"" + task + "\"")
+            return
+
+        # get the relationship       
+        return self.tasks[task].trait_relationships[trait]
+
+    # get a task object given a task name
+    def get_task(self, task=None):
+        return self.tasks[task]
+
+    # get a trait object give a task name
+    def get_trait(self, trait=None):
+        return self.traits[trait]
+
     # get the Q matrix
     def get_Q(self):
         Q = np.zeros((self.num_species, self.num_traits))  # initialize a zero matrix
@@ -193,8 +244,36 @@ class static_STRATA():
         self.X = X_candidate
         return X_candidate  # return the solution
 
-    # try every combination of robot distributions to find a solution
-    def complete_solve(self):
+    # try every combination of robot distributions to find a solution, minimizing frobenius norm
+    def solve_strata(self):
+        best_error = float("inf")
+        best_X = np.zeros((self.num_tasks, self.num_species))
+        X_possible = itertools.product([0, 1, 2, 3],repeat=9)  # Note: REPLACE THIS WITH ONE THAT ALLOWS FOR MORE ROBOTS/TRAITS/TASKS/MAX_ROBOTS
+        for X in X_possible:
+            X = np.array(X)
+            X = X.reshape((3,3))
+            # reject if too many robots assigned to a task
+            if np.any(np.sum(X, axis=0) > 3):
+                continue
+            
+            # threshold traits and calculate the frobenius norm
+            traits = np.matmul(X, self.Q)
+            thresholded_traits = np.minimum(self.Y_s, traits)  # threshold all traits
+            #print("traits", traits, "\nthresholded", thresholded_traits)
+            error = np.linalg.norm(self.Y_s - thresholded_traits)
+
+            if error < best_error:
+                print("new best STRATA", best_error, "-->", error)
+                print("thresholded traits", thresholded_traits)
+                best_error = error
+                best_X = X
+        self.X = best_X
+        best_p = self.calc_performance(X=best_X)
+        
+        return best_X, best_error, best_p
+
+    # try every combination of robot distributions to find a solution to minimize performance difference
+    def solve_performance(self):
         p_opt, _ = self.calc_performance(optimal=True)  # use Y* to get the optimal performance
         best_p = {}
         best_error = float("inf")
@@ -257,7 +336,6 @@ class static_STRATA():
         error /= len(list(self.tasks.keys()))
         return error
 
-
     # print Y_s
     def print_Y(self, Y=None):
         Y = Y if Y is not None else self.Y_s
@@ -290,6 +368,48 @@ class static_STRATA():
         print()
         return
 
+    # plots each trait/task relationship
+    def plot_relationships(self, max_u=None):
+        N = 1000  # number of sample points
+
+        # generate the x and y storage matrices, each is task x trait
+        x = []
+        y = []
+        for i_m in range(self.num_tasks):
+            x.append([])
+            y.append([])
+            for i_u in range(self.num_traits):
+                x[i_m].append([])
+                y[i_m].append([])
+        
+        task_names = sorted(list(self.tasks.keys()))
+        trait_names = sorted(list(self.traits.keys()))
+
+        # sample across the task/trait axes
+        for i_u in range(self.num_traits):  # for each trait
+            for i_m in range(self.num_tasks):  # for each task
+                for _ in range(N):
+                    sample_trait = self.traits[trait_names[i_u]].sample()  # sample the trait value
+                    val = self.get_relationship(task_names[i_m], trait_names[i_u]).calc_relationship_performance(sample_trait)  # get the relationship's value
+                    x[i_m][i_u].append(sample_trait)  # add the value to the relationship
+                    y[i_m][i_u].append(val)  # add the value to the relationship
+
+        # plot the relationships
+        fig, axs = plt.subplots(self.num_tasks, self.num_traits)  # create a subplot grid
+
+        for i_u in range(self.num_tasks):
+            for i_m in range(self.num_traits):
+                axs[i_m, i_u].scatter(x[i_m][i_u], y[i_m][i_u], s=5)
+                axs[i_m, i_u].set_title('Task ' + task_names[i_m] + ', Trait ' + trait_names[i_u])
+                if max_u is not None:  # if a max u was not specified, default to the trait's max u
+                    axs[i_m, i_u].set_xlim([self.traits[trait_names[i_u]].min_val, self.traits[trait_names[i_u]].max_val])
+                else:
+                    axs[i_m, i_u].set_xlim([0, max_u])
+                axs[i_m, i_u].set_ylim([self.tasks[task_names[i_u]].min_m, self.tasks[task_names[i_u]].max_m])
+                
+                # hide label if not on edge
+                axs[i_m, i_u].set_xlabel("Trait Value" if i_m == self.num_tasks - 1 else "")
+                axs[i_m, i_u].set_ylabel("Task Value" if i_u == 0 else "")
 
 # computes the performance of an assignment X
 def performance(X, Q):
