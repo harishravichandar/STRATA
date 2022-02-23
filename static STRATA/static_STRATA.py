@@ -2,7 +2,7 @@
 
 import numpy as np
 import numpy.linalg
-import cvxpy as cp
+#import cvxpy as cp
 import json
 import function_utils
 import STRATA_task, STRATA_trait, STRATA_relationship, STRATA_species
@@ -248,26 +248,39 @@ class static_STRATA():
     def solve_strata(self):
         best_error = float("inf")
         best_X = np.zeros((self.num_tasks, self.num_species))
-        X_possible = itertools.product([0, 1, 2, 3],repeat=9)  # Note: REPLACE THIS WITH ONE THAT ALLOWS FOR MORE ROBOTS/TRAITS/TASKS/MAX_ROBOTS
-        for X in X_possible:
+
+        species_max = np.array([self.species[s].max_robots for s in sorted(list(self.species.keys()))])  # max robots per species for each species
+        max_species_max = max(species_max)
+        
+        tasks_max = np.array([self.tasks[t].max_robots for t in sorted(list(self.tasks.keys()))])  # max robots per task for each task
+        max_tasks_max = max(tasks_max)
+        
+        # get all possible X values -- from [0 to min(max_species_max, max_tasks_max)], array of num_tasks x num_traits
+        X_possible = itertools.product(range(min(max_species_max, max_tasks_max)), repeat=self.num_tasks*self.num_traits)
+        for X in X_possible:  # for each possible species/task assignment
             X = np.array(X)
-            X = X.reshape((3,3))
+            X = X.reshape((self.num_tasks, self.num_species))  # reshape into matrix
+
+            # reject if too many robots assigned to a species
+            if np.any(np.sum(X, axis=0) > species_max):
+                continue
+
             # reject if too many robots assigned to a task
-            if np.any(np.sum(X, axis=0) > 3):
+            if np.any(np.sum(X, axis=1) > tasks_max):
                 continue
             
-            # threshold traits and calculate the frobenius norm
+            # threshold traits and calculate the Frobenius norm
             traits = np.matmul(X, self.Q)
-            thresholded_traits = np.minimum(self.Y_s, traits)  # threshold all traits
-            #print("traits", traits, "\nthresholded", thresholded_traits)
-            error = np.linalg.norm(self.Y_s - thresholded_traits)
+            thresholded_traits = np.minimum(self.Y_s, traits)  # threshold all traits to the Y_s (analytically calculated)
+            error = np.linalg.norm(self.Y_s - thresholded_traits)  # calculate the error of the assignment, L2 norm (STRATA)
 
-            if error < best_error:
+            if error < best_error:  # choose best assignment
                 best_error = error
                 best_X = X
+
         self.X = best_X
         best_p = self.calc_performance(X=best_X)
-        
+
         return best_X, best_error, best_p
 
     # try every combination of robot distributions to find a solution to minimize performance difference
@@ -276,12 +289,24 @@ class static_STRATA():
         best_p = {}
         best_error = float("inf")
         best_X = np.zeros((self.num_tasks, self.num_species))
-        X_possible = itertools.product([0, 1, 2, 3],repeat=9)  # Note: REPLACE THIS WITH ONE THAT ALLOWS FOR MORE ROBOTS/TRAITS/TASKS/MAX_ROBOTS
+
+        species_max = np.array([self.species[s].max_robots for s in sorted(list(self.species.keys()))])  # max robots per species for each species
+        max_species_max = max(species_max)
+        
+        tasks_max = np.array([self.tasks[t].max_robots for t in sorted(list(self.tasks.keys()))])  # max robots per task for each task
+        max_tasks_max = max(tasks_max)
+
+        X_possible = itertools.product(range(min(max_species_max, max_tasks_max)), repeat=self.num_tasks*self.num_traits)
         for X in X_possible:
             X = np.array(X)
             X = X.reshape((3,3))
-            # reject if too many robots
-            if np.any(np.sum(X, axis=0) > 3):
+            
+            # reject if too many robots assigned to a species
+            if np.any(np.sum(X, axis=0) > species_max):
+                continue
+
+            # reject if too many robots assigned to a task
+            if np.any(np.sum(X, axis=1) > tasks_max):
                 continue
             
             # calculate the performance
